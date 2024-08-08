@@ -3,7 +3,12 @@ import { WebSocket } from '@cloudflare/workers-types';
 import debug from 'debug';
 const log = debug('WorkerWebSocket');
 
-import { cbor as cborHelpers, NetworkAdapter, type PeerId, type PeerMetadata } from '@automerge/automerge-repo';
+import {
+	cbor as cborHelpers,
+	NetworkAdapter,
+	type PeerId,
+	type PeerMetadata,
+} from '@automerge/automerge-repo/slim';
 import { assert } from './assert.js';
 import { handleChunked, sendChunked } from './chunking.js';
 import { FromClientMessage, FromServerMessage, isJoinMessage, isLeaveMessage } from './messages.js';
