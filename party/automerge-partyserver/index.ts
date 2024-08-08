@@ -1,4 +1,4 @@
-import { type PeerId } from '@automerge/automerge-repo/slim';
+import { type PeerId, type Repo } from '@automerge/automerge-repo/slim';
 import { DurableObjectState } from '@cloudflare/workers-types';
 import { Connection, routePartykitRequest, Server } from 'partyserver';
 import { WorkerWebSocketAdapter } from '../automerge-repo-network-websocket/WorkerWebSocketAdapter';
@@ -10,6 +10,8 @@ const wsReadyStateClosing = 2; // eslint-disable-line
 const wsReadyStateClosed = 3; // eslint-disable-line
 
 export class AutomergeServer extends Server {
+	repo!: Repo;
+
 	constructor(private readonly ctx: DurableObjectState, private readonly env) {
 		super(ctx, env);
 	}
@@ -24,7 +26,11 @@ export class AutomergeServer extends Server {
 
 	async onStart(): Promise<void> {
 		console.log('on Start');
-
+		const { Repo } = await import('@automerge/automerge-repo');
+		this.repo = new Repo({
+			storage: new DurableObjectStorageAdapter(this.ctx.storage),
+			peerId: `worker-${this.ctx.id}` as PeerId,
+		});
 		const src = await this.onLoad();
 		if (src != null) {
 			// apply update to local document
@@ -36,12 +42,9 @@ export class AutomergeServer extends Server {
 	async onConnect(conn: Connection) {
 		const ctx = this.ctx;
 		console.log('connecting hoot', conn.id);
-		const { Repo } = await import('@automerge/automerge-repo');
-		const repo = new Repo({
-			network: [new WorkerWebSocketAdapter(conn)],
-			storage: new DurableObjectStorageAdapter(ctx.storage),
-			peerId: `worker-${ctx.id}` as PeerId,
-		});
+		this.repo.networkSubsystem.addNetworkAdapter(
+			new WorkerWebSocketAdapter(conn)
+		);
 	}
 
 	onMessage(sender: Connection<unknown>, message) {
