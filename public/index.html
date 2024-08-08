@@ -1,10 +1,47 @@
 <!DOCTYPE html>
-hello world?
+<h1>Automerge Doc Viewer</h1>
+<h2>DocID:<span id="docId"></span></h2>
+<pre id="docContent"></pre>
 <script type="module">
-	import {PartySocket} from "https://esm.sh/partysocket"
-	const socket = new PartySocket({
-		host: "wss://localhost:8787",
-		party: "automerge",
-		room: "my-room",
-	})
+	import { PartyClientAdapter } from './adapter.js';
+
+	import * as AR from 'https://esm.sh/@automerge/automerge-repo@2.0.0-alpha.1/slim?bundle-deps';
+	import { BrowserWebSocketClientAdapter } from 'https://esm.sh/@automerge/automerge-repo-network-websocket@2.0.0-alpha.1?bundle-deps';
+	import { IndexedDBStorageAdapter } from 'https://esm.sh/@automerge/automerge-repo-storage-indexeddb@2.0.0-alpha.1';
+
+	await AR.initializeWasm(
+		fetch('https://esm.sh/@automerge/automerge@2.2.7/dist/automerge.wasm')
+	);
+
+	const repo = new AR.Repo({
+		storage: new IndexedDBStorageAdapter(),
+		network: [
+			new PartyClientAdapter({
+				host: 'ws://localhost:8787',
+				party: 'automerge',
+				room: 'my-room',
+			}),
+		],
+	});
+
+	/* Check the location hash for a doc URL */
+	const rootDocUrl = `${document.location.hash.substring(1)}`;
+	let handle;
+	if (AR.isValidAutomergeUrl(rootDocUrl)) {
+		handle = repo.find(rootDocUrl);
+	} else {
+		handle = repo.create();
+	}
+	const docUrl = (document.location.hash = handle.url);
+
+	/* Put these on the window so we can use them conveniently from the console */
+	window.handle = handle;
+	window.repo = repo;
+
+	/* your code here */
+	handle.on('change', ({ handle, doc }) => {
+		var prettyJson = JSON.stringify(doc, null, 2);
+		document.getElementById('docId').textContent = handle.documentId;
+		document.getElementById('docContent').textContent = prettyJson;
+	});
 </script>
